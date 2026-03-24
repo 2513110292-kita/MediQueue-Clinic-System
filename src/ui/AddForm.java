@@ -85,8 +85,18 @@ public class AddForm extends JFrame {
         update.run();
 
         save.addActionListener(e -> {
-            String n = name.getText();
-            String p = phone.getText();
+            String n = name.getText().trim();
+            String p = phone.getText().trim();
+
+            if (n.isEmpty() || !n.matches("^[a-zA-Z\\s]+$")) {
+                JOptionPane.showMessageDialog(this, "Invalid Name! Please use letters only.");
+                return;
+            }
+
+            if (!p.matches("^\\d{10}$")) {
+                JOptionPane.showMessageDialog(this, "Invalid Phone! Please enter exactly 10 digits.");
+                return;
+            }
 
             if (manager.isDuplicatePerson(n, p)) {
                 JOptionPane.showMessageDialog(this, "You already have an existing appointment!");

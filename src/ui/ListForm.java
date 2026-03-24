@@ -156,47 +156,103 @@ public class ListForm extends JFrame {
             Appointment old = manager.getAll().get(realIndex);
 
             String phoneCheck = "";
-            boolean authenticated = false;
-
             while (true) {
                 phoneCheck = JOptionPane.showInputDialog(this, "Enter Phone Number to verify:");
                 if (phoneCheck == null) return;
-
-                if (phoneCheck.equals(old.getPhone()) || phoneCheck.equals("911")) {
-                    authenticated = true;
-                    break;
-                } else {
-                    JOptionPane.showMessageDialog(this, "Incorrect Phone Number! Please try again.", "Authentication Failed", JOptionPane.ERROR_MESSAGE);
-                }
+                if (phoneCheck.equals(old.getPhone()) || phoneCheck.equals("911")) break;
+                else JOptionPane.showMessageDialog(this, "Incorrect Phone Number!", "Error", JOptionPane.ERROR_MESSAGE);
             }
 
-            if (authenticated) {
-                String newDate = JOptionPane.showInputDialog("New Date:", old.getDate());
-                if (newDate == null) return;
+            JDialog editDlg = new JDialog(this, "Edit Appointment", true);
+            editDlg.setLayout(new GridBagLayout());
+            editDlg.setSize(400, 400);
+            editDlg.setLocationRelativeTo(this);
 
-                String newTime = JOptionPane.showInputDialog("New Time:", old.getTime());
-                if (newTime == null) return;
+            GridBagConstraints g = new GridBagConstraints();
+            g.insets = new Insets(5, 5, 5, 5);
+            g.fill = GridBagConstraints.HORIZONTAL;
 
-                String newDoctor = JOptionPane.showInputDialog("New Doctor:", old.getDoctor());
-                if (newDoctor == null) return;
+            JTextField txtName = new JTextField(old.getName(), 15);
+            JTextField txtPhone = new JTextField(old.getPhone(), 15);
+
+            String[] doctors = {"Dr.A", "Dr.B", "Dr.C", "Dr.D"};
+            JComboBox<String> cbDoc = new JComboBox<>(doctors);
+            cbDoc.setSelectedItem(old.getDoctor());
+
+            String[] dates = new String[7];
+            for (int i = 0; i < 7; i++) dates[i] = java.time.LocalDate.now().plusDays(i).toString();
+            JComboBox<String> cbDate = new JComboBox<>(dates);
+            cbDate.setSelectedItem(old.getDate());
+
+            JComboBox<String> cbTime = new JComboBox<>();
+
+            Runnable updateTimes = () -> {
+                cbTime.removeAllItems();
+                java.util.List<String> available = manager.getAvailableTimes(
+                        cbDate.getSelectedItem().toString(),
+                        cbDoc.getSelectedItem().toString());
+
+                for (String t : available) cbTime.addItem(t);
+
+                if (cbDate.getSelectedItem().toString().equals(old.getDate()) &&
+                        cbDoc.getSelectedItem().toString().equals(old.getDoctor())) {
+                    cbTime.addItem(old.getTime());
+                }
+            };
+
+            cbDoc.addActionListener(al -> updateTimes.run());
+            cbDate.addActionListener(al -> updateTimes.run());
+            updateTimes.run();
+            cbTime.setSelectedItem(old.getTime());
+
+            g.gridy = 0; g.gridx = 0; editDlg.add(new JLabel("Name:"), g);
+            g.gridx = 1; editDlg.add(txtName, g);
+            g.gridy = 1; g.gridx = 0; editDlg.add(new JLabel("Phone:"), g);
+            g.gridx = 1; editDlg.add(txtPhone, g);
+            g.gridy = 2; g.gridx = 0; editDlg.add(new JLabel("Doctor:"), g);
+            g.gridx = 1; editDlg.add(cbDoc, g);
+            g.gridy = 3; g.gridx = 0; editDlg.add(new JLabel("Date:"), g);
+            g.gridx = 1; editDlg.add(cbDate, g);
+            g.gridy = 4; g.gridx = 0; editDlg.add(new JLabel("Time:"), g);
+            g.gridx = 1; editDlg.add(cbTime, g);
+
+            JButton btnSave = new JButton("Update");
+            g.gridy = 5; g.gridx = 0; g.gridwidth = 2;
+            editDlg.add(btnSave, g);
+
+            String finalPhoneCheck = phoneCheck;
+            btnSave.addActionListener(al -> {
+                String n = txtName.getText().trim();
+                String p = txtPhone.getText().trim();
+
+                if (n.isEmpty() || !n.matches("^[a-zA-Z\\s]+$")) {
+                    JOptionPane.showMessageDialog(editDlg, "Invalid Name! Letters only.");
+                    return;
+                }
+                if (!p.matches("^\\d{10}$")) {
+                    JOptionPane.showMessageDialog(editDlg, "Invalid Phone! Must be 10 digits.");
+                    return;
+                }
 
                 Appointment newA = new Appointment(
-                        old.getName(),
-                        old.getPhone(),
-                        newDate,
-                        newTime,
-                        newDoctor,
-                        manager.getNextQueue(newDate, newDoctor)
+                        n, p,
+                        cbDate.getSelectedItem().toString(),
+                        cbTime.getSelectedItem().toString(),
+                        cbDoc.getSelectedItem().toString(),
+                        old.getQueueNumber()
                 );
 
-                if (manager.update(realIndex, newA, phoneCheck)) {
+                if (manager.update(realIndex, newA, finalPhoneCheck)) {
                     manager.saveToFile();
                     load(manager.getAll());
+                    editDlg.dispose();
                     JOptionPane.showMessageDialog(this, "Update Successful!");
                 } else {
-                    JOptionPane.showMessageDialog(this, "Update failed! The selected time slot might be taken.");
+                    JOptionPane.showMessageDialog(editDlg, "Error: Slot already taken!");
                 }
-            }
+            });
+
+            editDlg.setVisible(true);
         });
 
         setVisible(true);
